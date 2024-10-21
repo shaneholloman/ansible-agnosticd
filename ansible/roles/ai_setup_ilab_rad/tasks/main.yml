@@ -115,15 +115,36 @@
 
 # ==== START: RAD Roadshow ====
 
-- name: Install sdkman
+- name: Download VS Code
+  get_url:
+    url: https://code.visualstudio.com/sha/download?build=stable&os=linux-rpm-x64
+    dest: "{{ ai_setup_ilab_install_path_base }}/vscode.rpm"
+
+- name: Install VS Code
+  shell: "sudo rpm -ivh {{ ai_setup_ilab_install_path_base }}/vscode.rpm"
+
+- name: Download sdkman
   get_url:
     url: https://get.sdkman.io
-    dest: "{{ ai_setup_ilab_install_path_base }}/instructlab/sdkman-installer.sh"
+    dest: "{{ ai_setup_ilab_install_path_base }}/sdkman-installer.sh"
     mode: 0755
-  register: sdkman_installer
 
 - name: Run sdkman installer
-  shell: "{{ sdkman_installer.dest }}/bin/sdkman-init.sh"
+  shell: "bash {{ ai_setup_ilab_install_path_base }}/sdkman-installer.sh"
+
+- name: Check sdkman installation
+  shell: |
+    ls -al {{ ai_setup_ilab_install_path_base }}
+    ls -al {{ ai_setup_ilab_install_path_base }}/.sdkman/
+    ls -al {{ ai_setup_ilab_install_path_base }}/.sdkman/bin
+  register: r_result
+
+- name: Show output
+  debug:
+     msg: "{{ r_result.stdout }}" 
+
+- name: Initialize sdkman
+  shell: "source {{ ai_setup_ilab_install_path_base }}/.sdkman/bin/sdkman-init.sh"
 
 - name: Install Java using sdkman
   shell: sdk install java 21.0.3-tem  # Adjust version appropriately
@@ -158,15 +179,12 @@
     dest: "{{ ai_setup_ilab_install_path_base }}/parasol-insurance"
     update: no  # Avoid unnecessary re-clones (adjust if needed)
 
-- name: Change directory to app directory
-  become: true  # Likely needed for running mvnw and java
-  chdir: "{{ ai_setup_ilab_install_path_base }}/parasol-insurance/app"
-
 - name: Build the parasol app
-  command: mvnw clean package
+  shell: "{{ ai_setup_ilab_install_path_base }}/parasol-insurance/app/mvnw clean package"
+  become: true
 
 - name: Run the parasol app in background
-  command: nohup java -jar -Dquarkus.langchain4j.openai.parasol-chat.base-url=http://localhost:8000/v1 target/quarkus-app/quarkus-run.jar > ~/quarkus.out 2>&1 &
+  shell: "nohup java -jar -Dquarkus.langchain4j.openai.parasol-chat.base-url=http://localhost:8000/v1 {{ ai_setup_ilab_install_path_base }}/parasol-insurance/app/target/quarkus-app/quarkus-run.jar > ~/quarkus.out 2>&1 &"
   become: true
 
 - name: Create settings directory for VS Code
